@@ -1,6 +1,7 @@
 from database import Database
 import pickle
 import os
+import win32file
 
 
 class FileDatabase(Database):
@@ -26,15 +27,18 @@ class FileDatabase(Database):
         """
         Loads the database from the file.
         """
-        with open(self.filename, 'rb') as file:
-            self._db = pickle.load(file)
+        file = win32file.CreateFile(self.filename, win32file.GENERIC_READ, win32file.FILE_SHARE_READ, None, win32file.OPEN_ALWAYS, 0, 0)
+        hr, data = win32file.ReadFile(file, win32file.GetFileSize(file))
+        win32file.CloseHandle(file)
+        self._db = pickle.loads(data)
 
     def write_to_file(self):
         """
         Writes the database to the file.
         """
-        with open(self.filename, 'wb') as file:
-            pickle.dump(self._db, file)
+        file = win32file.CreateFile(self.filename, win32file.GENERIC_WRITE, win32file.FILE_SHARE_READ, None, win32file.OPEN_ALWAYS, 0, 0)
+        win32file.WriteFile(file, pickle.dumps(self._db))
+        win32file.CloseHandle(file)
 
     def set_value(self, key, value):
         """
