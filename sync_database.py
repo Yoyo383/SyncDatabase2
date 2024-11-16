@@ -27,19 +27,44 @@ class SyncDatabase(FileDatabase):
             self.__semaphore = threading.Semaphore(self.NUM_OF_CLIENTS)
             self.__write_lock = threading.Lock()
 
+    def acquire_semaphore(self):
+        """
+        Acquires a semaphore.
+        """
+        self.__semaphore.acquire()
+
+    def release_semaphore(self):
+        """
+        Releases a semaphore.
+        """
+        self.__semaphore.release()
+
+    def acquire_write_lock(self):
+        """
+        Acquires the write lock.
+        """
+        self.__write_lock.acquire()
+
+    def release_write_lock(self):
+        """
+        Releases the write lock.
+        :return:
+        """
+        self.__write_lock.release()
+
     def acquire_all_semaphores(self):
         """
         Acquires all semaphores. This function blocks until all semaphores are acquired.
         """
         for _ in range(self.NUM_OF_CLIENTS):
-            self.__semaphore.acquire()
+            self.acquire_semaphore()
 
     def release_all_semaphores(self):
         """
         Releases all semaphores.
         """
         for _ in range(self.NUM_OF_CLIENTS):
-            self.__semaphore.release()
+            self.release_semaphore()
 
     def set_value(self, key, value):
         """
@@ -51,10 +76,11 @@ class SyncDatabase(FileDatabase):
         :return: Whether the function was successful.
         :rtype: bool
         """
-        with self.__write_lock:
-            self.acquire_all_semaphores()
-            super().set_value(key, value)
-            self.release_all_semaphores()
+        self.acquire_write_lock()
+        self.acquire_all_semaphores()
+        super().set_value(key, value)
+        self.release_all_semaphores()
+        self.release_write_lock()
 
     def get_value(self, key):
         """
@@ -64,9 +90,9 @@ class SyncDatabase(FileDatabase):
         :return: The value of the key.
         :rtype: Any
         """
-        self.__semaphore.acquire()
+        self.acquire_semaphore()
         value = super().get_value(key)
-        self.__semaphore.release()
+        self.release_semaphore()
         return value
 
     def delete_value(self, key):
@@ -77,8 +103,9 @@ class SyncDatabase(FileDatabase):
         :return: The value of the key.
         :rtype: Any
         """
-        with self.__write_lock:
-            self.acquire_all_semaphores()
-            value = super().delete_value(key)
-            self.release_all_semaphores()
+        self.acquire_write_lock()
+        self.acquire_all_semaphores()
+        value = super().delete_value(key)
+        self.release_all_semaphores()
+        self.release_write_lock()
         return value
