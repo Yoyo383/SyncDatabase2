@@ -1,3 +1,5 @@
+import win32security
+
 from database import Database
 import pickle
 import os
@@ -17,6 +19,8 @@ class FileDatabase(Database):
         """
         super().__init__()
         self.filename = filename
+        self.security_attributes = win32security.SECURITY_ATTRIBUTES()
+        self.security_attributes.bInheritHandle = True
 
         if os.path.isfile(filename):
             self.load_from_file()
@@ -27,7 +31,9 @@ class FileDatabase(Database):
         """
         Loads the database from the file.
         """
-        file = win32file.CreateFile(self.filename, win32file.GENERIC_READ, win32file.FILE_SHARE_READ, None, win32file.OPEN_ALWAYS, 0, 0)
+        file = win32file.CreateFile(
+            self.filename, win32file.GENERIC_READ, win32file.FILE_SHARE_READ, None, win32file.OPEN_ALWAYS, 0, 0
+        )
         hr, data = win32file.ReadFile(file, win32file.GetFileSize(file))
         win32file.CloseHandle(file)
         self._db = pickle.loads(data)
@@ -36,7 +42,9 @@ class FileDatabase(Database):
         """
         Writes the database to the file.
         """
-        file = win32file.CreateFile(self.filename, win32file.GENERIC_WRITE, win32file.FILE_SHARE_READ, None, win32file.OPEN_ALWAYS, 0, 0)
+        file = win32file.CreateFile(
+            self.filename, win32file.GENERIC_WRITE, win32file.FILE_SHARE_READ, None, win32file.OPEN_ALWAYS, 0, 0
+        )
         win32file.WriteFile(file, pickle.dumps(self._db))
         win32file.CloseHandle(file)
 

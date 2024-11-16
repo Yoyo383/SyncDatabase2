@@ -1,6 +1,7 @@
+import win32api
+import win32event
+import win32security
 from file_database import FileDatabase
-import multiprocessing
-import threading
 
 
 class SyncDatabase(FileDatabase):
@@ -9,6 +10,8 @@ class SyncDatabase(FileDatabase):
     """
 
     NUM_OF_CLIENTS = 10
+    SEMAPHORE_NAME = 'WriteSemaphore'
+    WRITE_LOCK_NAME = 'WriteLock'
 
     def __init__(self, filename, process_mode):
         """
@@ -20,37 +23,39 @@ class SyncDatabase(FileDatabase):
         :type process_mode: bool
         """
         super().__init__(filename)
-        if process_mode:
-            self.__semaphore = multiprocessing.Semaphore(self.NUM_OF_CLIENTS)
-            self.__write_lock = multiprocessing.Lock()
-        else:
-            self.__semaphore = threading.Semaphore(self.NUM_OF_CLIENTS)
-            self.__write_lock = threading.Lock()
+        security_attributes = win32security.SECURITY_ATTRIBUTES()
+        security_attributes.bInheritHandle = True
+        self.__semaphore = win32event.CreateSemaphore(None, self.NUM_OF_CLIENTS, self.NUM_OF_CLIENTS, self.SEMAPHORE_NAME)
+        self.__write_lock = win32event.CreateMutex(None, False, self.WRITE_LOCK_NAME)
+
+    def __del__(self):
+        win32api.CloseHandle(self.__semaphore)
+        win32api.CloseHandle(self.__write_lock)
 
     def acquire_semaphore(self):
         """
         Acquires a semaphore.
         """
-        self.__semaphore.acquire()
+        win32event.WaitForSingleObject(self.__semaphore, -1)
 
     def release_semaphore(self):
         """
         Releases a semaphore.
         """
-        self.__semaphore.release()
+        win32event.ReleaseSemaphore(self.__semaphore, 1)
 
     def acquire_write_lock(self):
         """
         Acquires the write lock.
         """
-        self.__write_lock.acquire()
+        win32event.WaitForSingleObject(self.__write_lock, -1)
 
     def release_write_lock(self):
         """
         Releases the write lock.
         :return:
         """
-        self.__write_lock.release()
+        win32event.ReleaseMutex(self.__write_lock)
 
     def acquire_all_semaphores(self):
         """

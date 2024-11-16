@@ -1,6 +1,8 @@
 import os
 import threading
-import multiprocessing
+import win32con
+import win32event
+import win32process
 from sync_database import SyncDatabase
 
 
@@ -118,6 +120,7 @@ def test_processes():
     """
     db = SyncDatabase(FILENAME, True)
     processes = []
+    startup_info = win32process.STARTUPINFO()
 
     print('Testing process database...')
 
@@ -125,27 +128,27 @@ def test_processes():
         db.set_value(i, 0)
 
     for i in range(NUM_OF_ACCESSES):
-        test_process = multiprocessing.Process(target=update_val_func, args=(db, i))
-        processes.append(test_process)
-        test_process.start()
-
-        test_process = multiprocessing.Process(target=get_val_func, args=(db, i))
-        processes.append(test_process)
-        test_process.start()
+        cmd = f'python process_func.py {FILENAME} {i} update'
+        test_process = win32process.CreateProcess(
+            None, cmd, None, None, 0, win32con.CREATE_NEW_CONSOLE, None, None, startup_info
+        )
+        processes.append(test_process[0])
 
     for process in processes:
-        process.join()
+       win32event.WaitForSingleObject(process, -1)
 
     processes.clear()
     test_after_populating(db, 'Process')
 
     for i in range(NUM_OF_ACCESSES):
-        test_process = multiprocessing.Process(target=delete_val_func, args=(db, i))
-        processes.append(test_process)
-        test_process.start()
+        cmd = f'python process_func.py {FILENAME} {i} delete'
+        test_process = win32process.CreateProcess(
+            None, cmd, None, None, 0, win32con.CREATE_NEW_CONSOLE, None, None, startup_info
+        )
+        processes.append(test_process[0])
 
     for process in processes:
-        process.join()
+        win32event.WaitForSingleObject(process, -1)
 
     test_after_deleting(db, 'Process')
 
